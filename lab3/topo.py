@@ -19,6 +19,13 @@ import queue
 # import networkx as nx
 # import matplotlib.pyplot as plt
 
+# 当生成switch的Node的时候，计算dpid
+def location_to_dpid(core=None, pod=None, switch=None):
+	if core is not None:
+		return '0000000010%02x0000'%core
+	else:
+		return'000000002000%02x%02x'%(pod, switch)
+
 # Class for an edge in the graph
 class Edge:
 	def __init__(self):
@@ -92,12 +99,15 @@ class Fattree:
 			# edgelist
 			#ip: 10.pod.switch.1
 			for iswitch in range(0, int(num_ports/2)):
-				eswitch_t = Node("10."+ str(ipod) + "." + str(iswitch) + "." + str(1), "EdgeSwitch")
+				#eswitch_t = Node("10."+ str(ipod) + "." + str(iswitch) + "." + str(1), "EdgeSwitch")
+				dpid = location_to_dpid(pod=ipod, switch=iswitch)
+				eswitch_t = Node('p%de%d'%(ipod, iswitch), "EdgeSwitch", "10."+ str(ipod) + "." + str(iswitch) + "." + str(1), dpid)
 
 				# hostlist
 				#ip: 10.pod.switch.2 ~ k/2+2
 				for ihost in range(2, 2 + int(num_ports/2)):
-					host_t = Node("10."+ str(ipod) + "." + str(iswitch) + "." + str(ihost), "Host")
+					#host_t = Node("10."+ str(ipod) + "." + str(iswitch) + "." + str(ihost), "Host")
+					host_t = Node( 'p%de%dh%d'%(ipod, iswitch, ihost), "Host", "10."+ str(ipod) + "." + str(iswitch) + "." + str(ihost))
 					host_t.add_edge(eswitch_t)
 					self.servers.append( host_t )
 				
@@ -106,7 +116,9 @@ class Fattree:
 			# agglist
 			#ip: 10.pod.switch.1
 			for iswitch in range(int( num_ports/2 ), num_ports):
-				aswitch_t = Node("10."+ str(ipod) + "." + str(iswitch) + "." + str(1), "AggSwitch")
+				#aswitch_t = Node("10."+ str(ipod) + "." + str(iswitch) + "." + str(1), "AggSwitch")
+				dpid = location_to_dpid(pod=ipod, switch=iswitch)
+				aswitch_t = Node('p%da%d'%(ipod, iswitch), "AggSwitch", "10."+ str(ipod) + "." + str(iswitch) + "." + str(1), dpid)
 				AggSwitchList.append(aswitch_t)
 				pod_start = int(ipod * num_ports/2)
 				pod_end = int((ipod+1) * num_ports/2)
@@ -124,7 +136,9 @@ class Fattree:
 		# ip: 10. (k/2)^2. 1~(k/2). 1~(k/2)
 		for x in range(1, int(num_ports/2)+1):
 			for y in range(1, int(num_ports/2)+1):
-				cswitch_t = Node("10."+str(num_ports)+"." + str(x) + "." + str(y), "CoreSwitch")
+				#cswitch_t = Node("10."+str(num_ports)+"." + str(x) + "." + str(y), "CoreSwitch")
+				dpid = location_to_dpid(core= int((x-1) * (num_ports/2) + y) )
+				cswitch_t = Node( 'c%d%d'%(x, y), "CoreSwitch", "10."+str(num_ports)+"." + str(x) + "." + str(y), dpid)
 
 				for ipod in range(0, num_ports):
 					agg_index = int(num_ports/2) * ipod +  x - 1
