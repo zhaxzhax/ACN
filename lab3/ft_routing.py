@@ -46,8 +46,16 @@ class FTRouter(app_manager.RyuApp):
         self.prefix_routing_table = {}
         self.suffix_routing_table = {}
         self.mac_to_port = {}
+        self.ip_to_id = self.create_mappings()
         self.init_routing_table()
-   
+
+    def create_mappings(self):
+        all_nodes = self.topo_net.servers + self.topo_net.switches
+        ip_to_id = {node.ip: node.id for node in all_nodes}
+        
+        print(ip_to_id)
+
+        return ip_to_id
 
     # Topology discovery
 
@@ -93,11 +101,11 @@ class FTRouter(app_manager.RyuApp):
                 self.prefix_routing_table.setdefault(switch_ip_address, []).append((switch_prefix, next_hop, 1))
 
         self.prefix_routing_table = {
-            key: [(self.network_info(item[0]), item[1], item[1], item[2]) for item in value]
+            self.ip_to_id[key,"not found"]: [(self.network_info(item[0]), self.ip_to_id[item[1]], item[1], item[2]) for item in value]
            for key, value in self.prefix_routing_table.items()}
 
         self.suffix_routing_table = {
-            key: [(self.network_info(item[0]), item[1], item[1], item[2]) for item in value]
+            self.ip_to_id[key,"not found"]: [(self.network_info(item[0]), self.ip_to_id[item[1]], item[1], item[2]) for item in value]
             for key, value in self.suffix_routing_table.items()}
 
     def get_next_hop_for_current_switch(self, current_sw, destination_ip):
