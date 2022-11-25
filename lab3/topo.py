@@ -22,9 +22,9 @@ import queue
 # 当生成switch的Node的时候，计算dpid
 def location_to_dpid(core=None, pod=None, switch=None):
 	if core is not None:
-		return '0000000010%02x0000'%core
+		return str(int('0000000010%02x0000'%core,16))
 	else:
-		return'000000002000%02x%02x'%(pod, switch)
+		return str(int('000000002000%02x%02x'%(pod, switch),16))
 
 # Class for an edge in the graph
 class Edge:
@@ -108,8 +108,9 @@ class Fattree:
 				# hostlist
 				#ip: 10.pod.switch.2 ~ k/2+2
 				for ihost in range(2, 2 + int(num_ports/2)):
+					dpid = location_to_dpid(pod=ipod, switch=iswitch)+str(ihost)
 					#host_t = Node("10."+ str(ipod) + "." + str(iswitch) + "." + str(ihost), "Host")
-					host_t = Node( 'p%de%dh%d'%(ipod, iswitch, ihost), "Host", "10."+ str(ipod) + "." + str(iswitch) + "." + str(ihost))
+					host_t = Node( 'p%de%dh%d'%(ipod, iswitch, ihost), "Host", "10."+ str(ipod) + "." + str(iswitch) + "." + str(ihost), dpid)
 					host_t.add_edge(eswitch_t)
 					self.servers.append( host_t )
 				

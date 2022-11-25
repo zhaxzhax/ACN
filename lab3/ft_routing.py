@@ -27,6 +27,8 @@ from ryu.lib.mac import haddr_to_bin
 from ryu.lib.packet import packet
 from ryu.lib.packet import ipv4
 from ryu.lib.packet import arp
+from ryu.lib.packet import ethernet
+from ryu.lib.packet import ether_types
 
 from ryu.topology import event, switches
 from ryu.topology.api import get_switch, get_link
@@ -51,8 +53,8 @@ class FTRouter(app_manager.RyuApp):
 
     def create_mappings(self):
         all_nodes = self.topo_net.servers + self.topo_net.switches
-        ip_to_id = {node.ip: node.id for node in all_nodes}
-        
+        ip_to_id = {node.ip: node.dpid for node in all_nodes}
+        print(len(ip_to_id))
         print(ip_to_id)
 
         return ip_to_id
@@ -72,12 +74,16 @@ class FTRouter(app_manager.RyuApp):
                     switch_ip_address = f'10.{pod}.{switch}.1'
                     switch_prefix = f'10.{pod}.{subnet}.0/24'
                     next_hop = f'10.{pod}.{subnet}.1'
+                    if next_hop == f'10.0.4.1':
+                        print("error0")
                     self.prefix_routing_table.setdefault(switch_ip_address, []).append((switch_prefix, next_hop, 2))
                 for id in range(2, int(self.topo_net.num_ports / 2) + 2):
                     switch_ip_address = f'10.{pod}.{switch}.1'
                     switch_suffix = f'0.0.0.{id}/8'
                     port = int(((id - 2 + switch) % (self.topo_net.num_ports / 2)) + (self.topo_net.num_ports / 2))
                     next_hop = f'10.{self.topo_net.num_pods}.{switch - (int(self.topo_net.num_ports / 2) - 1)}.{port - 1}'
+                    if next_hop == f'10.0.4.1':
+                        print("error1")
                     self.suffix_routing_table.setdefault(switch_ip_address, []).append((switch_suffix, next_hop, 1))
 
         for j in range(1, int(self.topo_net.num_ports / 2) + 1):
@@ -86,26 +92,30 @@ class FTRouter(app_manager.RyuApp):
                     switch_ip_address = f'10.{self.topo_net.num_ports}.{j}.{i}'
                     switch_prefix = f'10.{dest_pod_x}.0.0/16'
                     next_hop = f'10.{dest_pod_x}.{j + (int(self.topo_net.num_ports / 2) - 1)}.1'
+                    if next_hop == f'10.0.4.1':
+                        print("error2")
                     self.prefix_routing_table.setdefault(switch_ip_address, []).append((switch_prefix, next_hop, 1))
 
         for pod in range(0, self.topo_net.num_pods):
             for switch in range(0, int(self.topo_net.num_ports / 2)):
                 switch_ip_address = f'10.{pod}.{switch}.1'
                 for host_id in range(2, int(self.topo_net.num_ports/2) + 2):
-                    switch_prefix = f'10.{pod}.{switch}.{host_id}/32'
-                    self.prefix_routing_table.setdefault(switch_ip_address, []).append((switch_prefix,
+                    switch_suffix = f'0.0.0.{host_id}/8'
+                    self.suffix_routing_table.setdefault(switch_ip_address, []).append((switch_suffix,
                                                                                  f'10.{pod}.{switch}.{host_id}', 1))
 
                 switch_prefix = f'0.0.0.0/0'
-                next_hop = f'10.{pod}.{i + int(self.topo_net.num_ports / 2)}.1'
+                next_hop = f'10.{pod}.{switch + int(self.topo_net.num_ports / 2)}.1'
+                if next_hop == f'10.0.4.1':
+                    print("error3")
                 self.prefix_routing_table.setdefault(switch_ip_address, []).append((switch_prefix, next_hop, 1))
-
+        # print(self.prefix_routing_table)
         self.prefix_routing_table = {
-            self.ip_to_id[key,"not found"]: [(self.network_info(item[0]), self.ip_to_id[item[1]], item[1], item[2]) for item in value]
+            self.ip_to_id[key]: [(self.network_info(item[0]), self.ip_to_id[item[1]], item[1], item[2]) for item in value]
            for key, value in self.prefix_routing_table.items()}
 
         self.suffix_routing_table = {
-            self.ip_to_id[key,"not found"]: [(self.network_info(item[0]), self.ip_to_id[item[1]], item[1], item[2]) for item in value]
+            self.ip_to_id[key]: [(self.network_info(item[0]), self.ip_to_id[item[1]], item[1], item[2]) for item in value]
             for key, value in self.suffix_routing_table.items()}
 
     def get_next_hop_for_current_switch(self, current_sw, destination_ip):
@@ -194,10 +204,9 @@ class FTRouter(app_manager.RyuApp):
             dst_ip = ip_pkt.dst
             type_of_eth = 'IP'
         else:
-            print(f'can not handle request apart from arp and IP')
             return
 
-        next_dpid, next_ip_addr, priority = self.get_next_hop_for_current_switch(f'sw{dpid}', dst_ip)
+        next_dpid, next_ip_addr, priority = self.get_next_hop_for_current_switch(f'{dpid}', dst_ip)
 
         if next_ip_addr == dst_ip:
             if dst in self.mac_to_port[dpid]:
@@ -206,10 +215,10 @@ class FTRouter(app_manager.RyuApp):
                 out_port = ofproto.OFPP_FLOOD
         else:
             for link in self.switches_links:
-                if link.src.dpid == dpid and 'sw' + str(link.dst.dpid) == next_dpid:
+                if link.src.dpid == dpid and str(link.dst.dpid) == next_dpid:
                     out_port = link.src.port_no
                     break
-                elif link.dst.dpid == dpid and 'sw'+str(link.src.dpid) == next_dpid:
+                elif link.dst.dpid == dpid and str(link.src.dpid) == next_dpid:
                     out_port = link.dst.port_no
                     break
 
