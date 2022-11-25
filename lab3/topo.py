@@ -40,10 +40,12 @@ class Edge:
 
 # Class for a node in the graph
 class Node:
-	def __init__(self, id, type):
+	def __init__(self, id, type, ip_address, dpid = None):
 		self.edges = []
 		self.id = id
 		self.type = type
+		self.ip = ip_address
+		self.dpid = dpid
 
 	# Add an edge connected to another node
 	def add_edge(self, node):
