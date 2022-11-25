@@ -55,11 +55,11 @@ class FattreeNet(Topo):
 		for ihost in range(len(ft_topo.servers)):
 			host = ft_topo.servers[ihost]
 			for iedge in range(len(host.edges)):
-				ln = self.addHost(host.edges[iedge].lnode.id)
+				ln = self.addHost(host.edges[iedge].lnode.id, ip=host.ip)
 				
 				# 右结点是agg switch
-				rn = self.addSwitch(host.edges[iedge].rnode.id)				
-				#rn = self.addSwitch(host.edges[iedge].rnode.id, dpid = host.edges[iedge].rnode.dpid)
+				#rn = self.addSwitch(host.edges[iedge].rnode.id)				
+				rn = self.addSwitch(host.edges[iedge].rnode.id, ip=host.edges[iedge].rnode.ip, dpid = host.edges[iedge].rnode.dpid)
 				
 				self.addLink(ln, rn, bw = 15, delay = '5')
 		
@@ -67,13 +67,13 @@ class FattreeNet(Topo):
 		for iaggswitch in range(ft_topo.num_agg):
 			aggswitch = ft_topo.switches[ft_topo.num_agg + iaggswitch]
 			for iedge in range(len(aggswitch.edges)):
-				
-				ln = self.addSwitch(aggswitch.edges[iedge].lnode.id)
-				#ln = self.addSwitch(aggswitch.edges[iedge].lnode.id, dpid = aggswitch.edges[iedge].lnode.dpid)
+
+				#ln = self.addSwitch(aggswitch.edges[iedge].lnode.id)
+				ln = self.addSwitch(aggswitch.edges[iedge].lnode.id, ip=aggswitch.edges[iedge].lnode.ip, dpid = aggswitch.edges[iedge].lnode.dpid)
 				
 				# 右边是edge和core
-				rn = self.addSwitch(aggswitch.edges[iedge].rnode.id)
-				#rn = self.addSwitch(aggswitch.edges[iedge].rnode.id, dpid = aggswitch.edges[iedge].rnode.dpid)
+				#rn = self.addSwitch(aggswitch.edges[iedge].rnode.id)
+				rn = self.addSwitch(aggswitch.edges[iedge].rnode.id, ip=aggswitch.edges[iedge].rnode.ip, dpid = aggswitch.edges[iedge].rnode.dpid)
 				
 				self.addLink(ln, rn, bw = 15, delay = '5')
 
