@@ -130,49 +130,22 @@ class SPRouter(app_manager.RyuApp):
         prev = self.solve(s)
         return self.reconstructPath(s, d, prev)
     
-    def trans_out_port(self, datapath, src, dst, in_port, is_arp):
+    def trans_out_port(self, datapath, src, dst, in_port):
         dpid = datapath.id
-        if is_arp == 0:
-            if src not in self.adj_list:
-                self.adj_list.setdefault(src, {})
-                self.adj_list[src][dpid] = -1
-                self.adj_list.setdefault(dpid, {})
-                self.adj_list[dpid][src] = in_port
-
-            if dst in self.adj_list:
-                path = self.bfs(src, dst)
-                next_hop = path[path.index(dpid) + 1]
-                out_port = self.adj_list[dpid][next_hop]
-                print("PATH:")
-                print(path)
-            else:
-                out_port = datapath.ofproto.OFPP_FLOOD
+        if src not in self.adj_list:
+            self.adj_list.setdefault(src, {})
+            self.adj_list[src][dpid] = -1
+            self.adj_list.setdefault(dpid, {})
+            self.adj_list[dpid][src] = in_port
+        if dst in self.adj_list:
+            path = self.bfs(src, dst)
+            next_hop = path[path.index(dpid) + 1]
+            out_port = self.adj_list[dpid][next_hop]
+            print("PATH:")
+            print(path)
         else:
-            if src not in self.adj_list:
-                self.adj_list.setdefault(src, {})
-                self.adj_list[src][dpid] = -1
-                self.adj_list.setdefault(dpid, {})
-                self.adj_list[dpid][src] = in_port
-            
-            print("dst")
-            print(dst)
-            if dst in self.adj_list:
-                path = self.bfs(src, dst)
-                print(path)
-                if dpid not in path:
-                    return -1
-                if path[-1] == dpid:
-                    return datapath.ofproto.OFPP_FLOOD
-                next_hop = path[path.index(dpid) + 1]
-                out_port = self.adj_list[dpid][next_hop]
-            else:
-                out_port = datapath.ofproto.OFPP_FLOOD
+            out_port = datapath.ofproto.OFPP_FLOOD
         return out_port
-    
-    # Calculate dpid of the switch linking with target server based on server's ip.
-    def calip(self, ip):
-        # h1 ping h2
-        return int(ip[-1])
 
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def _packet_in_handler(self, ev):
@@ -198,7 +171,6 @@ class SPRouter(app_manager.RyuApp):
         out_port = datapath.ofproto.OFPP_FLOOD
         if eth.ethertype == ether_types.ETH_TYPE_ARP:
             arp_pkt = pkt.get_protocol(arp.arp)
-            
             if arp_pkt.opcode == arp.ARP_REQUEST:
                 if (datapath.id, arp_pkt.src_mac, arp_pkt.dst_ip) in self.arp_history and self.arp_history[(datapath.id, arp_pkt.src_mac, arp_pkt.dst_ip)] != in_port:
                     #self.logger.info("drop arp- dpid:%s src:%s dst:%s in_port:%s", dpid, arp_pkt.src_mac, arp_pkt.dst_ip, in_port)
@@ -207,23 +179,8 @@ class SPRouter(app_manager.RyuApp):
                     #self.logger.info("add arp history- dpid:%s src:%s dst:%s in_port:%s", dpid, arp_pkt.src_mac, arp_pkt.dst_ip, in_port)      
                     self.arp_history[(datapath.id, arp_pkt.src_mac, arp_pkt.dst_ip)] = in_port
                     print(self.arp_history)
-                
-                dstip = arp_pkt.dst_ip
-                # dpid of the switch that links with the dst server
-                link_switch_dpid = self.calip(dstip)
-                #out_port = self.trans_out_port(datapath, src, link_switch_dpid, in_port, 0)
-                out_port = self.trans_out_port(datapath, src, dst, in_port, 0)
-                print(out_port)
-                print(self.adj_list)
-                #if out_port == -1:
-                    #return
             
-            else:
-                print("arp response!")
-                out_port = self.trans_out_port(datapath, src, dst, in_port, 0)
-
-        else:
-            out_port = self.trans_out_port(datapath, src, dst, in_port, 0)
+        out_port = self.trans_out_port(datapath, src, dst, in_port)
         
         actions = [ofp_parser.OFPActionOutput(out_port)]
 
