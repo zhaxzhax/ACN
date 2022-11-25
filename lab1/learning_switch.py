@@ -22,6 +22,8 @@ from ryu.lib.packet import ethernet
 from ryu.lib.packet import ipv4
 from ryu.lib.packet import arp
 
+ARP = arp.arp.__name__
+
 class LearningSwitch(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
 
@@ -63,12 +65,44 @@ class LearningSwitch(app_manager.RyuApp):
         datapath = msg.datapath
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
+        
 
         # Get datapath ID to identify the switch
         dpid = datapath.id
+        self.mac_to_port.setdefault(dpid, {})
 
-        # TODO: learning switch implementation
+        # learning switch implementation
+	        # analyse the received packets using the packet library.
+        pkt = packet.Packet(msg.data)
+        eth_pkt = pkt.get_protocol(ethernet.ethernet)
+        dst = eth_pkt.dst
+        src = eth_pkt.src
+        # get the received port number from packet_in message.
+        in_port = msg.match['in_port']
+        
+        header_list = dict(
+            (p.protocol_name, p)for p in pkt.protocols if type(p) != str)
+        self.logger.info("packet in %s %s %s %s", dpid, src, dst, in_port)
+        if ARP not in header_list:
+           # self.arp_table[header_list[ARP].src_ip] = src
+        # else: 
+            # learn a mac address to avoid FLOOD next time.
+            self.mac_to_port[dpid][src] = in_port
 
+        # if the destination mac address is already learned,
+        # decide which port to output the packet, otherwise FLOOD.
+        if dst in self.mac_to_port[dpid]:
+            out_port = self.mac_to_port[dpid][dst]
+        else:
+            out_port = ofproto.OFPP_FLOOD
+
+        # construct action list.
+        actions = [parser.OFPActionOutput(out_port)]
+
+        # install a flow to avoid packet_in next time.
+        if out_port != ofproto.OFPP_FLOOD:
+            match = parser.OFPMatch(in_port=in_port, eth_dst=dst)
+            self.add_flow(datapath, 1, match, actions)
 
         # Construct packet_out message and send it
         out = parser.OFPPacketOut(datapath=datapath,

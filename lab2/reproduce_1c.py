@@ -16,11 +16,17 @@
 import topo
 
 # Same setup for Jellyfish and Fattree
-num_servers = 686
-num_switches = 245
-num_ports = 14
+# num_servers = 686
+# num_switches = 245
+# num_ports = 14
 
-ft_topo = topo.Fattree(num_ports)
+num_servers = 16
+num_switches = 20
+num_ports = 4
+# ft_topo = topo.Fattree(num_ports)
 jf_topo = topo.Jellyfish(num_servers, num_switches, num_ports)
+
+#test image
+jf_topo.draw()
 
 # TODO: code for reproducing Figure 1(c) in the jellyfish paper
