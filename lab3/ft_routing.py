@@ -53,7 +53,7 @@ class FTRouter(app_manager.RyuApp):
 
     def create_mappings(self):
         all_nodes = self.topo_net.servers + self.topo_net.switches
-        ip_to_id = {node.ip: node.dpid for node in all_nodes}
+        ip_to_id = {node.ip: str(int(node.dpid,16)) for node in all_nodes}
         print(len(ip_to_id))
         print(ip_to_id)
 
@@ -67,6 +67,10 @@ class FTRouter(app_manager.RyuApp):
         mask = int(n.netmask)
         return network_str, netw, mask
 
+    def is_address_in_network(self, ip, netw, mask):
+        a = int(ipaddress.ip_address(ip))
+        return (a & mask) == netw
+        
     def init_routing_table(self):
         for pod in range(0, self.topo_net.num_pods):
             for switch in range(int(self.topo_net.num_ports / 2), self.topo_net.num_ports):
@@ -118,8 +122,8 @@ class FTRouter(app_manager.RyuApp):
             self.ip_to_id[key]: [(self.network_info(item[0]), self.ip_to_id[item[1]], item[1], item[2]) for item in value]
             for key, value in self.suffix_routing_table.items()}
 
-    def get_next_hop_for_current_switch(self, current_sw, destination_ip):
-        routing_information_list = self.prefix_routing_table[current_sw]
+    def get_next_hop_for_current_switch(self, dpid, destination_ip):
+        routing_information_list = self.prefix_routing_table[dpid]
 
         for routing_information in routing_information_list:
             network_str, netw, mask = routing_information[0]
@@ -129,7 +133,7 @@ class FTRouter(app_manager.RyuApp):
             if self.is_address_in_network(destination_ip, netw, mask):
                 return hop, hop_ip_address, priority
 
-        routing_information_list = self.routing_table_suffixes[current_sw]
+        routing_information_list = self.suffix_routing_table[dpid]
 
         for routing_information in routing_information_list:
             network_str, netw, mask = routing_information[0]
@@ -139,7 +143,7 @@ class FTRouter(app_manager.RyuApp):
             if self.is_address_in_network(destination_ip, netw, mask):
                 return hop, hop_ip_address, priority
 
-        raise Exception(f" ip: {destination_ip} and switch: {current_sw} has no route path")
+        raise Exception(f" ip: {destination_ip} and switch: {dpid} has no route path")
 
 
     @set_ev_cls(event.EventSwitchEnter)
@@ -205,6 +209,8 @@ class FTRouter(app_manager.RyuApp):
             type_of_eth = 'IP'
         else:
             return
+            
+        print(dpid)
 
         next_dpid, next_ip_addr, priority = self.get_next_hop_for_current_switch(f'{dpid}', dst_ip)
 

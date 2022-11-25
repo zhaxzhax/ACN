@@ -22,9 +22,9 @@ import queue
 # 当生成switch的Node的时候，计算dpid
 def location_to_dpid(core=None, pod=None, switch=None):
 	if core is not None:
-		return str(int('0000000010%02x0000'%core,16))
+		return '0000000010%02x0000'%core
 	else:
-		return str(int('000000002000%02x%02x'%(pod, switch),16))
+		return '000000002000%02x%02x'%(pod, switch)
 
 # Class for an edge in the graph
 class Edge:
