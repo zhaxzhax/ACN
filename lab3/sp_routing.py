@@ -166,7 +166,7 @@ class SPRouter(app_manager.RyuApp):
                 next_hop = path[path.index(dpid) + 1]
                 out_port = self.adj_list[dpid][next_hop]
             else:
-                out_port = -1
+                out_port = datapath.ofproto.OFPP_FLOOD
         return out_port
     
     # Calculate dpid of the switch linking with target server based on server's ip.
@@ -211,11 +211,12 @@ class SPRouter(app_manager.RyuApp):
                 dstip = arp_pkt.dst_ip
                 # dpid of the switch that links with the dst server
                 link_switch_dpid = self.calip(dstip)
-                out_port = self.trans_out_port(datapath, src, link_switch_dpid, in_port, 1)
+                #out_port = self.trans_out_port(datapath, src, link_switch_dpid, in_port, 0)
+                out_port = self.trans_out_port(datapath, src, dst, in_port, 0)
                 print(out_port)
                 print(self.adj_list)
-                if out_port == -1:
-                    return
+                #if out_port == -1:
+                    #return
             
             else:
                 print("arp response!")
