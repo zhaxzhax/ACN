@@ -16,6 +16,7 @@
 #!/usr/bin/env python3
 
 import ipaddress
+import re
 
 from ryu.base import app_manager
 from ryu.controller import mac_to_port
@@ -71,6 +72,10 @@ class FTRouter(app_manager.RyuApp):
         a = int(ipaddress.ip_address(ip))
         return (a & mask) == netw
         
+    def seperate_ip(self, ip_str):
+        l = re.split(r'(.*)\.(.*)\.(.*)\.(.*)', ip_str)
+        return l[1:-1]
+        
     def init_routing_table(self):
         for pod in range(0, self.topo_net.num_pods):
             for switch in range(int(self.topo_net.num_ports / 2), self.topo_net.num_ports):
@@ -83,7 +88,7 @@ class FTRouter(app_manager.RyuApp):
                     self.prefix_routing_table.setdefault(switch_ip_address, []).append((switch_prefix, next_hop, 2))
                 for id in range(2, int(self.topo_net.num_ports / 2) + 2):
                     switch_ip_address = f'10.{pod}.{switch}.1'
-                    switch_suffix = f'0.0.0.{id}/8'
+                    switch_suffix = f'0.0.0.{id}'
                     port = int(((id - 2 + switch) % (self.topo_net.num_ports / 2)) + (self.topo_net.num_ports / 2))
                     next_hop = f'10.{self.topo_net.num_pods}.{switch - (int(self.topo_net.num_ports / 2) - 1)}.{port - 1}'
                     if next_hop == f'10.0.4.1':
@@ -101,17 +106,15 @@ class FTRouter(app_manager.RyuApp):
                     self.prefix_routing_table.setdefault(switch_ip_address, []).append((switch_prefix, next_hop, 1))
 
         for pod in range(0, self.topo_net.num_pods):
-            for switch in range(0, int(self.topo_net.num_ports / 2)):
-                switch_ip_address = f'10.{pod}.{switch}.1'
+            for i in range(0, int(self.topo_net.num_ports / 2)):
+                switch_ip_address = f'10.{pod}.{i}.1'
                 for host_id in range(2, int(self.topo_net.num_ports/2) + 2):
-                    switch_suffix = f'0.0.0.{host_id}/8'
-                    self.suffix_routing_table.setdefault(switch_ip_address, []).append((switch_suffix,
-                                                                                 f'10.{pod}.{switch}.{host_id}', 1))
+                    switch_prefix = f'10.{pod}.{i}.{host_id}/32'
+                    self.prefix_routing_table.setdefault(switch_ip_address, []).append((switch_prefix,
+                                                                                 f'10.{pod}.{i}.{host_id}', 1))
 
                 switch_prefix = f'0.0.0.0/0'
-                next_hop = f'10.{pod}.{switch + int(self.topo_net.num_ports / 2)}.1'
-                if next_hop == f'10.0.4.1':
-                    print("error3")
+                next_hop = f'10.{pod}.{i + int(self.topo_net.num_ports / 2)}.1'
                 self.prefix_routing_table.setdefault(switch_ip_address, []).append((switch_prefix, next_hop, 1))
         # print(self.prefix_routing_table)
         self.prefix_routing_table = {
@@ -119,7 +122,7 @@ class FTRouter(app_manager.RyuApp):
            for key, value in self.prefix_routing_table.items()}
 
         self.suffix_routing_table = {
-            self.ip_to_id[key]: [(self.network_info(item[0]), self.ip_to_id[item[1]], item[1], item[2]) for item in value]
+            self.ip_to_id[key]: [(item[0], self.ip_to_id[item[1]], item[1], item[2]) for item in value]
             for key, value in self.suffix_routing_table.items()}
 
     def get_next_hop_for_current_switch(self, dpid, destination_ip):
@@ -136,11 +139,11 @@ class FTRouter(app_manager.RyuApp):
         routing_information_list = self.suffix_routing_table[dpid]
 
         for routing_information in routing_information_list:
-            network_str, netw, mask = routing_information[0]
+            netw = routing_information[0]
             hop = routing_information[1]
             hop_ip_address = routing_information[2]
             priority = routing_information[3]
-            if self.is_address_in_network(destination_ip, netw, mask):
+            if self.seperate_ip(str(destination_ip))[3] == self.seperate_ip(str(netw))[3]:
                 return hop, hop_ip_address, priority
 
         raise Exception(f" ip: {destination_ip} and switch: {dpid} has no route path")
