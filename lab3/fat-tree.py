@@ -41,6 +41,41 @@ class FattreeNet(Topo):
 		Topo.__init__(self)
 
 		# TODO: please complete the network generation logic here
+		for iswitch in range(len(ft_topo.switches)):
+			switch = ft_topo.switches[iswitch]
+			#self.addSwitch(switch.id)
+			self.addSwitch(switch.id, ip=switch.ip, dpid=switch.dpid)
+
+		# add host
+		for iserver in range(len(ft_topo.servers)):
+			host = ft_topo.servers[iserver]
+			self.addHost(host.id, ip=host.ip)
+
+		# add link of hosts
+		for ihost in range(len(ft_topo.servers)):
+			host = ft_topo.servers[ihost]
+			for iedge in range(len(host.edges)):
+				ln = self.addHost(host.edges[iedge].lnode.id)
+				
+				# 右结点是agg switch
+				rn = self.addSwitch(host.edges[iedge].rnode.id)				
+				#rn = self.addSwitch(host.edges[iedge].rnode.id, dpid = host.edges[iedge].rnode.dpid)
+				
+				self.addLink(ln, rn, bw = 15, delay = '5')
+		
+		# add link of agg
+		for iaggswitch in range(ft_topo.num_agg):
+			aggswitch = ft_topo.switches[ft_topo.num_agg + iaggswitch]
+			for iedge in range(len(aggswitch.edges)):
+				
+				ln = self.addSwitch(aggswitch.edges[iedge].lnode.id)
+				#ln = self.addSwitch(aggswitch.edges[iedge].lnode.id, dpid = aggswitch.edges[iedge].lnode.dpid)
+				
+				# 右边是edge和core
+				rn = self.addSwitch(aggswitch.edges[iedge].rnode.id)
+				#rn = self.addSwitch(aggswitch.edges[iedge].rnode.id, dpid = aggswitch.edges[iedge].rnode.dpid)
+				
+				self.addLink(ln, rn, bw = 15, delay = '5')
 
 
 def make_mininet_instance(graph_topo):
